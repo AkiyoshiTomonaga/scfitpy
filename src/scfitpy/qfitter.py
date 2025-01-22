@@ -1,27 +1,31 @@
-import numpy as np
+"""qfitter.py -"""
+
 import math
-import matplotlib.pyplot as plt
+
+import numpy as np
 from tqdm import tqdm
-from scipy import linalg
-import scipy as sp
-import os
-import pickle
-import cupy as cp
-from scipy.sparse.linalg import eigsh
-from scipy.special import eval_hermite
-from scipy.constants import *
+import matplotlib.pyplot as plt
+
+from scipy.constants import h, physical_constants
 
 phi0 = physical_constants["mag. flux quantum"][0]
 
+try:
+    import cupy as cp  # type: ignore
+except ImportError:
+    import numpy as cp
 
-def band(n):  # band matrix: M(i,j)=kron(i,j-1)
+
+def band(n):
+    """band matrix: M(i,j)=kron(i,j-1)"""
     band = np.array(np.zeros((n, n), dtype=np.complex64))
     for i in range(n - 1):
         band[i][i + 1] = 1
     return band
 
 
-def dest(n):  # annihilation operator: M(i,j)=sqrt(i)*kron(i,j-1)
+def dest(n):
+    """annihilation operator: M(i,j)=sqrt(i)*kron(i,j-1)"""
     dest = np.array(np.zeros((n, n), dtype=np.complex64))
     for i in range(n - 1):
         dest[i][i + 1] = np.sqrt(i + 1)
@@ -66,7 +70,16 @@ sigz = [[1, 0], [0, -1]]
 sigx = [[0, 1], [1, 0]]
 
 
-def QHami(N, eps, g, d, omegaC0, L, R):
+def QHami(N: int, eps: float, g: float, d:float, omegaC0:float, L:float, R:float) -> np.ndarray:
+    """Get a Hamiltonian of ...
+
+    Args:
+        N: the number of dimension for the cavity (size of fock space)
+        eps: xxx
+    
+    Return:
+        Hamiltonian - np.ndarray[complex], dims=[N,N]
+    """
     sz = np.kron(sigz, np.eye(N))
     sx = np.kron(sigx, np.eye(N))
     a = np.kron(np.eye(2), dest(N))
@@ -83,8 +96,9 @@ def QHami(N, eps, g, d, omegaC0, L, R):
     return H
 
 
-# Rabimodel Hamiltonian for fit
+
 def Rabi(flist, params):
+    """Rabi-model Hamiltonian for fitting"""
     F = 13
     bn = 10
     E1 = [[] for i in range(bn)]
@@ -546,175 +560,3 @@ def circuit_spectrum_QR(Ev, Ek, params, nlist, qspace):
     return E1
 
 
-###Photo processing
-from skimage import data
-from skimage import color
-from skimage.filters import sato
-import scipy.stats
-from skimage import measure
-
-
-def normalization(x):
-    min = x.min(axis=None, keepdims=True)
-    max = x.max(axis=None, keepdims=True)
-    result = (x - min) / (max - min)
-    return result
-
-
-def photoProcess(data, sigma, black_ridges):
-    data = normalization(data)
-
-    kwargs = {}
-    kwargs["sigmas"] = [sigma]
-    kwargs["black_ridges"] = black_ridges
-
-    result = sato(data, **kwargs)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    plt.rcParams["font.size"] = 18
-    X, Y = np.meshgrid(
-        np.linspace(0, len(result[0]), len(result[0])),
-        np.linspace(0, len(result), len(result)),
-    )
-    mappable = ax.pcolor(Y, X, result, cmap="bwr")
-    cbar_num_format = "%.2f"
-    cbar = plt.colorbar(mappable, ax=ax, format=cbar_num_format)
-    plt.tight_layout()
-    plt.savefig("sato.png", bbox_inches="tight", pad_inches=0.5, dpi=500)
-    return result
-
-
-def ContFind(data, th, string):
-    r = data.T
-    contours = measure.find_contours(r, th)
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    plt.rcParams["font.size"] = 24
-
-    X, Y = np.meshgrid(
-        np.linspace(0, len(data[0]), len(data[0])), np.linspace(0, len(data), len(data))
-    )
-    mappable = ax.pcolor(Y, X, data, cmap="bwr")
-
-    for n, contour in enumerate(contours):
-        if len(contour) > string:
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    plt.savefig("cont.png", bbox_inches="tight", pad_inches=0.5, dpi=500)
-    plt.show()
-
-    st_num = []
-    for n, contour in enumerate(contours):
-        if len(contour) > string:
-            st_num.append(n)
-
-    cont_list = [[] for i in range(len(st_num))]
-    for k, i in enumerate(st_num):
-        cont_list[k] = contours[i]
-
-    return cont_list
-
-
-def peakTrace(mag2, freq, current, cont_band, th, vwid, hwid, black_ridges):
-    if black_ridges == True:
-        mag2 = 10 * normalization(-mag2)
-    else:
-        mag2 = 10 * normalization(mag2)
-    for i, cont in enumerate(
-        cont_band
-    ):  # integerization for get the coordinate in grid
-        for j in range(len(cont)):
-            for k in range(len(cont[0])):
-                cont_band[i][j][k] = math.floor(cont_band[i][j][k])
-
-    def get_unique_list(seq):  # eliminate dupulicate point
-        seen = []
-        return [x for x in seq if x not in seen and not seen.append(x)]
-
-    for i in range(len(cont_band)):
-        cont_band[i] = np.array(get_unique_list(cont_band[i].tolist()))
-
-    null_vec = np.array([0 for i in range(mag2.shape[1])])
-    cont_bla = np.array(
-        [[null_vec for i in range(mag2.shape[0])] for i in range(len(cont_band))]
-    )
-    for i, cont in enumerate(cont_band):
-        for j in range(len(cont)):
-            for k in range(2 * vwid):
-                if (
-                    int(cont[j][0]) - vwid + k < len(mag2[1])
-                    and int(cont[j][0]) - vwid + k > 0
-                ):
-                    cont_bla[i][int(cont[j][1])][int(cont[j][0]) - vwid + k] = 1
-            for k in range(2 * hwid):
-                if (
-                    int(cont[j][1]) - hwid + k < len(mag2)
-                    and int(cont[j][1]) - hwid + k > 0
-                ):
-                    cont_bla[i][int(cont[j][1]) - hwid + k][int(cont[j][0])] = 1
-
-    # Show graph
-    blade = null_vec
-    for i in range(len(cont_bla)):
-        blade = blade + cont_bla[i]
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for n, cont in enumerate(cont_band):
-        ax.plot(cont[:, 1], cont[:, 0], "+", ms=2, label=str(n))
-    X, Y = np.meshgrid(
-        np.linspace(0, len(blade[0]), len(blade[0])),
-        np.linspace(0, len(blade), len(blade)),
-    )
-    mappable = ax.pcolor(Y, X, blade, cmap="bwr")
-    ax.legend(loc="upper right")
-    plt.savefig("blade.png", bbox_inches="tight", pad_inches=0.5, dpi=500)
-    plt.show()
-
-    bi_sato = np.array([null_vec for i in range(len(mag2))])
-    for i in range(len(mag2)):  # convert mag2 to binary matrix
-        for j in range(len(mag2[1])):
-            if mag2[i][j] > th:
-                bi_sato[i][j] = 1
-
-    # cont_blaとbi_satoの重なる部分の座標を抽出 かつ　他のバンドと場所を共有しないようにフィルタ。
-    # Get the coordinate data from the set bi_sato ∧ cont_bla, and filtaling to band_pos[i] ∧ band_pos[j] = Φ at i≠j
-    band_pos = [[] for i in range(len(cont_bla))]
-    for i in range(len(cont_bla)):
-        cont_bla[i] = np.logical_and(cont_bla[i], bi_sato)
-    for i in range(len(cont_bla) - 1):
-        band_pos[i] = (
-            cont_bla[i]
-            - np.logical_and(cont_bla[i], cont_bla[i + 1])
-            - np.logical_and(cont_bla[i - 1], cont_bla[i])
-        )
-        band_pos[i + 1] = cont_bla[i + 1] - np.logical_and(cont_bla[i], cont_bla[i + 1])
-
-    # 上で定めた領域の点をmag2の値として持ち出す。
-    # Get the data from mag2 at the coordinate in band_pos
-    band = np.array(
-        [[null_vec for i in range(mag2.shape[0])] for i in range(len(cont_band))]
-    )
-    for k in range(len(band)):
-        for i in range(len(mag2)):
-            for j in range(len(mag2[0])):
-                if band_pos[k][i][j] == 1:
-                    band[k][i][j] = mag2[i][j]
-
-    # min/max値を取り出す。（セクション分けをしたのだから、重みづけして、幅を持たせた全部の点でフィットするとかもありか？？）
-    # 横軸はcurrent
-    # Get the band structure data as min or max position in mag2
-    band_min = [[] for i in range(len(band))]
-    cur_p = [[] for i in range(len(band))]
-    for k in range(len(band)):
-        for i in range(len(mag2)):
-            if sum(band[k][i]) > 0:
-                band_min[k].append(freq[np.argmax(band[k][i])])
-                cur_p[k].append(current[i])
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for i in range(len(band)):
-        ax.plot(cur_p[i], band_min[i], ".", label=str(i))
-    ax.legend(loc="upper right")
-    plt.savefig("peak.png", bbox_inches="tight", pad_inches=0.5, dpi=500)
-    plt.show()
-
-    return cur_p, band_min
