@@ -40,7 +40,7 @@ See the <LICENSE> file.
 # 作業メモ
 
 - [x] ライセンスどうするか
-- [ ] ディレクトリ構造を直す
+- [x] ディレクトリ構造を直す
 - [ ] pip install で使えるパッケージにする
 - [ ] 処理とノートを分離する
 - コードのreadability/qualityをあげる
