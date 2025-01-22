@@ -41,7 +41,7 @@ See the <LICENSE> file.
 
 - [x] ライセンスどうするか
 - [x] ディレクトリ構造を直す
-- [ ] pip install で使えるパッケージにする
+- [x] pip install で使えるパッケージにする
 - [ ] 処理とノートを分離する
 - コードのreadability/qualityをあげる
   - [ ] コーディング規約をいれる
