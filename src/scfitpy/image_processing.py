@@ -62,6 +62,8 @@ def apply_image_filter(
 
 def _calc_poly_length(polygon: np.ndarray) -> float:
     """閉曲線ポリゴンの周囲長を計算"""
+    assert np.isclose(polygon[0], polygon[-1]).all()
+
     xs, ys = np.array(polygon).T
     dx = xs[1:] - xs[:-1]
     dy = ys[1:] - ys[:-1]
@@ -98,6 +100,8 @@ def find_contours(
 
     def _ensure_closed(polygon) -> np.ndarray:
         """polygon --> enclosed polygon"""
+        assert len(polygon) >= 3
+
         if np.isclose(polygon[0], polygon[-1]).all():
             return polygon
         return np.ndarray(list(polygon) + [polygon[0]])
