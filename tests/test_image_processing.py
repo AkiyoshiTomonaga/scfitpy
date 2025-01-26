@@ -5,7 +5,7 @@ from scfitpy.image_processing import _calc_poly_length
 
 
 def test_apply_image_filter():
-    raise NotImplemented
+    raise NotImplementedError
 
 
 def test__calc_poly_length():
@@ -19,16 +19,16 @@ def test__calc_poly_length_ng():
 
 
 def test_find_contours():
-    raise NotImplemented
+    raise NotImplementedError
 
 
 def test_assign_contours():
-    raise NotImplemented
+    raise NotImplementedError
 
 
 def test_mask_img():
-    raise NotImplemented
+    raise NotImplementedError
 
 
 def test_determine_frequencies():
-    raise NotImplemented
+    raise NotImplementedError

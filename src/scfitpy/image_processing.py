@@ -11,10 +11,11 @@ from skimage import measure
 
 
 def normalize(x):
-    min = x.min(axis=None, keepdims=True)
-    max = x.max(axis=None, keepdims=True)
-    result = (x - min) / (max - min)
-    return result
+    """x in R --> [0..1]"""
+    x = np.ndarray(x)
+    mn = x.min(axis=None, keepdims=True)
+    mx = x.max(axis=None, keepdims=True)
+    return (x - mn) / (mx - mn)
 
 
 # def photoProcess(data, sigma, black_ridges):

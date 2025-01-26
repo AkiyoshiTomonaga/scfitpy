@@ -55,7 +55,8 @@ The codes in this repository are written by [Akiyoshi Tomonaga](https://github.c
 
 - [x] ライセンスどうするか
 - [x] ディレクトリ構造を直す
-- [x] pip install で使えるパッケージにする
+- [x] pip install で使えるパッケージにする。
+- [ ] dependency整理する。`cupy`が処理外になっている
 - [ ] 処理とノートを分離する
 - コードのreadability/qualityをあげる
   - [x] コーディング規約をいれる
