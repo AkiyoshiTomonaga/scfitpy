@@ -21,9 +21,19 @@ from scfitpy import Qfit
 ```
 
 
-### More
+### Advanced Usages
 
-See <./notebook>.
+- `./notebooks/001_PeakTrace.ipynb`: TBD
+- `./notebooks/101_RabiFit.ipynb`: TBD
+- `./notebooks/102_4JJ_CircFit.ipynb`: TBD
+- `./notebooks/201_RabiSpaceCheck.ipynb`: TBD
+- `./notebooks/202_QspaceCheck.ipynb`: TBD
+- `./notebooks/assets/*`: experimental data to be processed
+- `notebooks/outs/*`: processed data
+
+See the [./notebooks](notebooks) dir.
+Each notebook corresponds to each step in the paper.
+
 
 ## Acknowledgements
 
@@ -36,6 +46,10 @@ See <./notebook>.
 
 See the <LICENSE> file.
 
+## Author information
+
+The codes in this repository are written by [Akiyoshi Tomonaga](https://github.com/AkiyoshiTomonaga) and [Kosuke Mizuno](https://github.com/KosukeMizunoAIST)
+
 
 # 作業メモ
 
@@ -44,6 +58,6 @@ See the <LICENSE> file.
 - [x] pip install で使えるパッケージにする
 - [ ] 処理とノートを分離する
 - コードのreadability/qualityをあげる
-  - [ ] コーディング規約をいれる
-  - [ ] コードを適切に分割する
+  - [x] コーディング規約をいれる
+  - [x] コードを適切に分割する
   - [ ] 自動テストを書く
