@@ -1,7 +1,8 @@
 """A module for post-processing to extract peak/dip structures from two-dimensional spectrum."""
 
 import math
-from typing import Sequence
+from numbers import Number
+from typing import Callable, Iterable, Sequence
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ from skimage.filters import sato
 from skimage import measure
 
 
-def normalize(x):
+def normalize(x) -> np.ndarray:
     """x in R --> [0..1]"""
     x = np.ndarray(x)
     mn = x.min(axis=None, keepdims=True)
@@ -21,17 +22,52 @@ def normalize(x):
 # def photoProcess(data, sigma, black_ridges):
 def apply_image_filter(
     img: np.ndarray,
-    sigma: float,
+    func: Callable[..., np.ndarray],
+    with_plot=False,
+    filename_plot="filtered_img.png",
+    **kwargs,
+) -> np.ndarray:
+    """Apply image processing for an arbitrary filter function.
+
+    Args:
+        img: (M, N[, P]) ndarray, An input image(color image of 2d spectrum)
+        func: callable, A function implementing an image processing filter. The first argument is `img`.
+        with_plot: if True, make a matplotlib plot.
+        filename_plot: ...
+        kwargs: will be passed to the function.
+
+    Return:
+        (M, N[, P]) ndarray
+    """
+    result = func(img, **kwargs)
+
+    if with_plot:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        plt.rcParams["font.size"] = 18
+        h, w = result.shape[:2]
+        X, Y = np.meshgrid(np.arange(w), np.arange(h))
+        mappable = ax.pcolor(Y, X, result, cmap="bwr")
+        cbar_num_format = "%.2f"
+        plt.colorbar(mappable, ax=ax, format=cbar_num_format)
+        plt.tight_layout()
+        plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+
+    return result
+
+
+def apply_sato_filter(
+    img: np.ndarray,
+    sigmas: float | Iterable[float],
     black_ridges: bool,
-    with_plot=True,
-    filename_plot="sato.png",
+    with_plot=False,
+    filename_plot="filtered_img_sato.png",
     **kwargs,
 ) -> np.ndarray:
     """Apply image processing (sato-function).
 
     Args:
         img: (M, N[, P]) ndarray, an input image(color image of 2d spectrum)
-        sigma: TBD
+        sigmas: TBD
         black_ridges: see <skimage.filters.sato>
         with_plot: if True, make a matplotlib plot.
         filename_plot: ...
@@ -41,24 +77,14 @@ def apply_image_filter(
     """
     img = normalize(img)
 
-    kwargs["sigmas"] = [sigma]
+    if isinstance(sigmas, (int, float)):
+        sigmas = [sigmas]
+    kwargs["sigmas"] = sigmas
     kwargs["black_ridges"] = black_ridges
-    result = sato(img, **kwargs)
 
-    if with_plot:
-        fig, ax = plt.subplots(figsize=(8, 6))
-        plt.rcParams["font.size"] = 18
-        X, Y = np.meshgrid(
-            np.linspace(0, len(result[0]), len(result[0])),
-            np.linspace(0, len(result), len(result)),
-        )
-        mappable = ax.pcolor(Y, X, result, cmap="bwr")
-        cbar_num_format = "%.2f"
-        plt.colorbar(mappable, ax=ax, format=cbar_num_format)
-        plt.tight_layout()
-        plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
-
-    return result
+    return apply_image_filter(
+        img, func=sato, with_plot=with_plot, filename_plot=filename_plot, **kwargs
+    )
 
 
 def _calc_poly_length(polygon: np.ndarray) -> float:
@@ -77,7 +103,7 @@ def find_contours(
     img: np.ndarray,
     level: float,
     threshold_length: float,
-    with_plot=True,
+    with_plot=False,
     filename_plot="cont.png",
     **kwargs,
 ) -> list[np.ndarray]:
@@ -154,7 +180,7 @@ def mask_img(
     img: np.ndarray,
     cont_dict: dict[str, np.ndarray],
     offset: float,
-    with_plot=True,
+    with_plot=False,
     filename_plot="mask.png",
 ) -> dict[str, np.ndarray[int]]:
     """Extract regions to freq-determination.
