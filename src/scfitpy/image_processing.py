@@ -2,7 +2,7 @@
 
 import math
 from numbers import Number
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,18 +13,17 @@ from skimage import measure
 
 def normalize(x) -> np.ndarray:
     """x in R --> [0..1]"""
-    x = np.ndarray(x)
+    x = np.array(x)
     mn = x.min(axis=None, keepdims=True)
     mx = x.max(axis=None, keepdims=True)
     return (x - mn) / (mx - mn)
 
 
-# def photoProcess(data, sigma, black_ridges):
 def apply_image_filter(
     img: np.ndarray,
     func: Callable[..., np.ndarray],
     with_plot=False,
-    filename_plot="filtered_img.png",
+    filename_plot: str = None,
     **kwargs,
 ) -> np.ndarray:
     """Apply image processing for an arbitrary filter function.
@@ -43,10 +42,7 @@ def apply_image_filter(
 
     if with_plot:
         fig, ax = plt.subplots(figsize=(8, 6))
-        plt.rcParams["font.size"] = 18
-        h, w = result.shape[:2]
-        X, Y = np.meshgrid(np.arange(w), np.arange(h))
-        mappable = ax.pcolor(Y, X, result, cmap="bwr")
+        mappable = ax.pcolor(result, cmap="bwr")
         cbar_num_format = "%.2f"
         plt.colorbar(mappable, ax=ax, format=cbar_num_format)
         plt.tight_layout()
@@ -60,7 +56,7 @@ def apply_sato_filter(
     sigmas: float | Iterable[float],
     black_ridges: bool,
     with_plot=False,
-    filename_plot="filtered_img_sato.png",
+    filename_plot: str = None,
     **kwargs,
 ) -> np.ndarray:
     """Apply image processing (sato-function).
@@ -98,13 +94,12 @@ def _calc_poly_length(polygon: np.ndarray) -> float:
     return np.sum(ls)
 
 
-# def ContFind(data, th, string):
 def find_contours(
     img: np.ndarray,
     level: float,
-    threshold_length: float,
+    threshold_length: float = None,
     with_plot=False,
-    filename_plot="cont.png",
+    filename_plot: str = None,
     **kwargs,
 ) -> list[np.ndarray]:
     """Find contours from a 2d spectrum.
@@ -116,13 +111,13 @@ def find_contours(
     Args:
         img: (M, N[, P]) ndarray
         level: see <find_contours>
-        threshold_length: 論文の手続き
+        threshold_length: プロットに表示する閾値
         with_plot: ...
         filename_plot: ...
         kwargs: the other arguments will be passed to find_contours.
 
     Return:
-        list of ...
+        list of polygons
     """
 
     def _ensure_closed(polygon) -> np.ndarray:
@@ -131,36 +126,60 @@ def find_contours(
 
         if np.isclose(polygon[0], polygon[-1]).all():
             return polygon
-        return np.ndarray(list(polygon) + [polygon[0]])
+        return np.concatenate((polygon, [polygon[0]]))
 
-    contours = measure.find_contours(img.T, level, **kwargs)
-    contours = filter(
-        lambda poly: _calc_poly_length(poly) > threshold_length,
-        [_ensure_closed(poly) for poly in contours],
-    )
-    contours = list(contours)
+    contours = [
+        _ensure_closed(poly) for poly in measure.find_contours(img, level, **kwargs)
+    ]
+    len_list = [_calc_poly_length(poly) for poly in contours]
+
+    if threshold_length is None:
+        threshold_length = np.median(len_list)
+    flg_list = [L >= threshold_length for L in len_list]
 
     if with_plot:
-        fig, ax = plt.subplots(figsize=(8, 6))
-        plt.rcParams["font.size"] = 24
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        (ax, ax_L), (ax_cont, _) = axes
 
-        X, Y = np.meshgrid(np.arange(img.shape[0]), np.arange(img.shape[1]))
-        ax.pcolor(Y, X, img, cmap="bwr")
+        ax.pcolor(img, cmap="bwr")
+        for idx, (poly, flg) in enumerate(zip(contours, flg_list)):
+            if not flg:
+                continue
 
-        for contour in contours:
-            if len(contour) > threshold_length:
-                ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+            ax.plot(poly[:, 1], poly[:, 0], "k-", linewidth=1)
+            ax.plot(poly[:, 1], poly[:, 0], f"C{idx % 10}--", linewidth=2)
+
+            ax_cont.plot(poly[:, 1], poly[:, 0], f"C{idx % 10}-", linewidth=1)
+            ax_cont.annotate(
+                idx,
+                xy=(np.average(poly[:, 1]), np.average(poly[:, 0])),
+                fontsize=10,
+                color="k",
+                bbox={"facecolor": f"C{idx % 10}", "edgecolor": "w", "alpha": 0.3},
+            )
+        for poly, flg in zip(contours, flg_list):
+            if not flg:
+                ax.plot(poly[:, 1], poly[:, 0], "k-", linewidth=1, alpha=0.8)
+
+        ax_L.plot(len_list, ds="steps-mid")
+        ax_L.axhline(y=threshold_length, color="k", ls="dashed")
+        ax_L.grid()
+        ax_L.set_ylabel("Contour length")
+        ax_L.set_xlabel("# of contours")
+
+        if filename_plot is not None:
+            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
         plt.show()
 
     return contours
 
 
 def assign_contours(
-    cont_list: list[np.ndarray], dict_indexes: dict[str, tuple[int, ...]]
-) -> dict[str, np.ndarray]:
+    cont_list: Sequence[np.ndarray],
+    dict_indexes: dict[str, tuple[int, ...]],
+    with_plot=False,
+    filename_plot: str = None,
+) -> dict[str, list[np.ndarray]]:
     """Make a dict of contours. key=label, val=contour
 
     Example:
@@ -169,19 +188,37 @@ def assign_contours(
         >>> {"a": ..., "b": ..., "c": ...}
     """
 
-    def _concat(ids: Sequence[int]):
-        return np.concatenate([cont_list[i] for i in ids])
+    cont_dict = {k: [cont_list[i] for i in ids] for k, ids in dict_indexes.items()}
 
-    return {k: _concat(ids) for k, ids in dict_indexes.items()}
+    if with_plot:
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        for i, (kw, contours) in enumerate(cont_dict.items()):
+            for j, poly in enumerate(contours):
+                ax.plot(
+                    poly[:, 1],
+                    poly[:, 0],
+                    f"C{i % 10}-",
+                    label=(
+                        kw if j == 0 else None
+                    ),  # 各閉ポリゴン群で一つだけラベルする
+                )
+            ax.legend()
+
+        if filename_plot is not None:
+            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+        plt.show()
+
+    return cont_dict
 
 
 # def peakTrace(mag2, freq, current, cont_band, th, vwid, hwid, black_ridges):
-def mask_img(
+def determine_regions(
     img: np.ndarray,
-    cont_dict: dict[str, np.ndarray],
+    cont_dict: Mapping[str, Sequence[np.ndarray]],
     offset: float,
     with_plot=False,
-    filename_plot="mask.png",
+    filename_plot: str = None,
 ) -> dict[str, np.ndarray[int]]:
     """Extract regions to freq-determination.
 
@@ -190,17 +227,21 @@ def mask_img(
 
     Args:
         img:
-        cont_dict:
+        cont_dict: key=label, value=list of enclosed-polygon
         offset: size of dilation
         ...
 
     Return:
         A dictionary, key=label, value=list of pixel positions.
     """
-    img = 10 * normalize(img)
+    h, w = img.shape
+    X, Y = np.meshgrid(range(w), range(h))
+    [pos for pos, v in np.ndenumerate(img)]
 
-    # make list of filled-polygon
-    pass
+    for label, contours in cont_dict.items():
+        min_length = np.zeros_like(img)  # あるバンドへの最短距離
+        for p in contours:
+            pass
 
     # dilate
     pass
