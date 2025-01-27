@@ -9,7 +9,8 @@ TBD
 ### Installation
 
 - `git clone <this repo>`
-- `pip install .` or `pip install git+https://github.com/AkiyoshiTomonaga/scfitpy.git`
+- `pip install .[cupy]` or `pip install git+https://github.com/AkiyoshiTomonaga/scfitpy.git`
+  - If you don't have a cuda environment, use `pip install .` instead. It doesn't install `cupy`.
 
 ### Quick example
 
