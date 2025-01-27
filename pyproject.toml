@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "matplotlib", "scipy", "scikit-image>=0.25.0"]
 
 [dependency-groups]
-dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm"]
+dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm", "jq"]
 cupy = ["cupy"]
 
 
