@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 
-dependencies = ["numpy", "matplotlib", "scipy", "scikit-image>=0.25.0"]
+dependencies = ["numpy", "matplotlib", "scipy", "scikit-image", "opencv-python"]
 
 [dependency-groups]
 dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm", "jq"]

@@ -4,11 +4,13 @@ import math
 from numbers import Number
 from typing import Callable, Iterable, Mapping, Sequence
 
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
 from skimage.filters import sato
 from skimage import measure
+from tqdm.auto import tqdm
 
 
 def normalize(x) -> np.ndarray:
@@ -212,11 +214,10 @@ def assign_contours(
     return cont_dict
 
 
-# def peakTrace(mag2, freq, current, cont_band, th, vwid, hwid, black_ridges):
 def determine_regions(
     img: np.ndarray,
     cont_dict: Mapping[str, Sequence[np.ndarray]],
-    offset: float,
+    kernel: int | np.ndarray = 3,
     with_plot=False,
     filename_plot: str = None,
 ) -> dict[str, np.ndarray[int]]:
@@ -232,118 +233,118 @@ def determine_regions(
         ...
 
     Return:
-        A dictionary, key=label, value=list of pixel positions.
+        A dictionary, key=label, value=list of binary images.
     """
-    h, w = img.shape
-    X, Y = np.meshgrid(range(w), range(h))
-    [pos for pos, v in np.ndenumerate(img)]
 
-    for label, contours in cont_dict.items():
-        min_length = np.zeros_like(img)  # あるバンドへの最短距離
-        for p in contours:
-            pass
+    def make_filled_img(contours: list[np.ndarray]):
+        _img = np.zeros(img.shape, np.uint8)
+        pts = [
+            np.flip(
+                np.array(poly, dtype=int), axis=1
+            )  # converting positions to coordinates for cv2
+            for poly in contours
+        ]
+        return cv2.fillPoly(_img, pts, 1)
 
-    # dilate
-    pass
+    # make regeion (binary image)
+    region_dict = {k: make_filled_img(contours) for k, contours in cont_dict.items()}
+
+    # dilate regions
+    if isinstance(kernel, int):
+        kernel = np.ones((kernel, kernel), np.uint8)
+    region_dict = {k: cv2.dilate(r, kernel) for k, r in region_dict.items()}
 
     # logical op.
-    pass
-
-    masks: dict[str, np.ndarray[int]]  # key=label, val=list of position
-
-    # null_vec = np.array([0 for i in range(img.shape[1])])
-    # cont_bla = np.array(
-    #     [[null_vec for i in range(img.shape[0])] for i in range(len(cont_band))]
-    # )
-    # for i, cont in enumerate(cont_band):
-    #     for j in range(len(cont)):
-    #         for k in range(2 * offset_y):
-    #             if (
-    #                 int(cont[j][0]) - offset_y + k < len(img[1])
-    #                 and int(cont[j][0]) - offset_y + k > 0
-    #             ):
-    #                 cont_bla[i][int(cont[j][1])][int(cont[j][0]) - offset_y + k] = 1
-    #         for k in range(2 * offset_x):
-    #             if (
-    #                 int(cont[j][1]) - offset_x + k < len(img)
-    #                 and int(cont[j][1]) - offset_x + k > 0
-    #             ):
-    #                 cont_bla[i][int(cont[j][1]) - offset_x + k][int(cont[j][0])] = 1
+    # A, B, C, ... ==> A, B & not A, C & not A & not B, ...
+    # 始めに来た領域を優先して、領域ごとの被りをなくす
+    Rt = np.zeros(img.shape, np.uint8)
+    for k in region_dict.keys():
+        # Note: keysではなくregion.itemsにすると終わらなくなる。これは辞書内を直接編集しているため。
+        region_dict[k] = cv2.bitwise_and(region_dict[k], cv2.bitwise_not(Rt))
+        Rt = cv2.bitwise_or(Rt, region_dict[k])
 
     if with_plot:
-        blade = null_vec
-        for i in range(len(cont_bla)):
-            blade = blade + cont_bla[i]
         fig, ax = plt.subplots(figsize=(8, 6))
-        for n, cont in enumerate(cont_band):
-            ax.plot(cont[:, 1], cont[:, 0], "+", ms=2, label=str(n))
-        X, Y = np.meshgrid(
-            np.linspace(0, len(blade[0]), len(blade[0])),
-            np.linspace(0, len(blade), len(blade)),
-        )
-        mappable = ax.pcolor(Y, X, blade, cmap="bwr")
-        ax.legend(loc="upper right")
-        plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+
+        for k, r in region_dict.items():
+            ax.pcolor(r, alpha=0.2)
+
+        for i, (kw, contours) in enumerate(cont_dict.items()):
+            for j, poly in enumerate(contours):
+                ax.plot(
+                    poly[:, 1],
+                    poly[:, 0],
+                    f"C{i % 10}-",
+                    label=(
+                        kw if j == 0 else None
+                    ),  # 各閉ポリゴン群で一つだけラベルする
+                )
+
+        if filename_plot is not None:
+            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
         plt.show()
 
-    bi_sato = np.array([null_vec for i in range(len(mag2))])
-    for i in range(len(mag2)):  # convert mag2 to binary matrix
-        for j in range(len(mag2[1])):
-            if mag2[i][j] > th:
-                bi_sato[i][j] = 1
-
-    # cont_blaとbi_satoの重なる部分の座標を抽出 かつ　他のバンドと場所を共有しないようにフィルタ。
-    # Get the coordinate data from the set bi_sato ∧ cont_bla, and filtaling to band_pos[i] ∧ band_pos[j] = Φ at i≠j
-    band_pos = [[] for i in range(len(cont_bla))]
-    for i in range(len(cont_bla)):
-        cont_bla[i] = np.logical_and(cont_bla[i], bi_sato)
-    for i in range(len(cont_bla) - 1):
-        band_pos[i] = (
-            cont_bla[i]
-            - np.logical_and(cont_bla[i], cont_bla[i + 1])
-            - np.logical_and(cont_bla[i - 1], cont_bla[i])
-        )
-        band_pos[i + 1] = cont_bla[i + 1] - np.logical_and(cont_bla[i], cont_bla[i + 1])
-
-    # 上で定めた領域の点をmag2の値として持ち出す。
-    # Get the data from mag2 at the coordinate in band_pos
-    band = np.array(
-        [[null_vec for i in range(mag2.shape[0])] for i in range(len(cont_band))]
-    )
-    for k in range(len(band)):
-        for i in range(len(mag2)):
-            for j in range(len(mag2[0])):
-                if band_pos[k][i][j] == 1:
-                    band[k][i][j] = mag2[i][j]
+    return region_dict
 
 
-def determine_frequencies(
-    mag,
-    masks: dict[str, np.ndarray[int]],
-    freq,
-    current,
-    cont_band,
-    th,
-    vwid,
-    hwid,
-    black_ridges,
-):
-    # min/max値を取り出す。（セクション分けをしたのだから、重みづけして、幅を持たせた全部の点でフィットするとかもありか？？）
-    # 横軸はcurrent
-    # Get the band structure data as min or max position in mag2
-    band_min = [[] for i in range(len(band))]
-    cur_p = [[] for i in range(len(band))]
-    for k in range(len(band)):
-        for i in range(len(mag2)):
-            if sum(band[k][i]) > 0:
-                band_min[k].append(freq[np.argmax(band[k][i])])
-                cur_p[k].append(current[i])
+def determine_peak_positions(
+    img: np.ndarray,
+    region_dict: Mapping[str, np.ndarray[int]],
+    xaxis: np.ndarray | Sequence | None = None,
+    yaxis: np.ndarray | Sequence | None = None,
+    with_plot=False,
+    filename_plot: str = None,
+) -> dict[str, list[np.ndarray]]:
+    """! TODO あとで書く
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for i in range(len(band)):
-        ax.plot(cur_p[i], band_min[i], ".", label=str(i))
-    ax.legend(loc="upper right")
-    plt.savefig("peak.png", bbox_inches="tight", pad_inches=0.5, dpi=500)
-    plt.show()
+    Args:
+        img (np.ndarray): _description_
+        region_dict (Mapping[str, np.ndarray[int]]): _description_
+        xaxis (np.ndarray | Sequence | None, optional): _description_. Defaults to None.
+        yaxis (np.ndarray | Sequence | None, optional): _description_. Defaults to None.
+        with_plot (bool, optional): _description_. Defaults to False.
+        filename_plot (str, optional): _description_. Defaults to None.
 
-    return cur_p, band_min
+    Returns:
+        dict[str, list[tuple[float, float]]]: _description_
+    """
+    assert len(img.shape) == 2
+    h, w = img.shape
+    xaxis = np.array(xaxis) if xaxis is not None else np.arange(w)
+    yaxis = np.array(yaxis) if yaxis is not None else np.arange(h)
+    assert len(xaxis) == img.shape[1]
+    assert len(yaxis) == img.shape[0]
+
+    peak_dict: dict[str, list[tuple[float, float]]] = {
+        k: [] for k in region_dict.keys()
+    }
+    for k, region in region_dict.items():
+        _img = np.copy(img)
+        _img[np.where(region == 0)] = np.nan
+
+        for idx_x in range(w):
+            vs = _img[:, idx_x]
+            try:
+                idx_ypeak = int(np.nanargmax(vs))
+            except ValueError:
+                pass  # all-nan slice, その軸に値が見つからないケース
+            else:
+                peak_dict[k].append((xaxis[idx_x], yaxis[idx_ypeak]))
+    peak_dict = {k: np.array(pos) for k, pos in peak_dict.items()}
+
+    if with_plot:
+        fig, (ax, ax_pos) = plt.subplots(1, 2, figsize=(14, 6))
+        X, Y = np.meshgrid(xaxis, yaxis)
+        ax.pcolor(X, Y, img)
+        for i, (kw, positions) in enumerate(peak_dict.items()):
+            pos = np.array(positions)
+            ax.scatter(pos[:, 0], pos[:, 1], c="red", label=kw, marker="x", alpha=0.1)
+            ax_pos.scatter(pos[:, 0], pos[:, 1], c=f"C{i % 10}", label=kw, marker=".")
+        ax_pos.set_xlim(ax.get_xlim())
+        ax_pos.set_ylim(ax.get_ylim())
+        ax_pos.legend()
+        if filename_plot is not None:
+            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+        plt.show()
+
+    return peak_dict
