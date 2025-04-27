@@ -2,11 +2,10 @@
 
 import math
 
-import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
-
+import numpy as np
 from scipy.constants import h, physical_constants
+from tqdm import tqdm
 
 phi0 = physical_constants["mag. flux quantum"][0]
 
@@ -70,13 +69,15 @@ sigz = [[1, 0], [0, -1]]
 sigx = [[0, 1], [1, 0]]
 
 
-def QHami(N: int, eps: float, g: float, d:float, omegaC0:float, L:float, R:float) -> np.ndarray:
+def QHami(
+    N: int, eps: float, g: float, d: float, omegaC0: float, L: float, R: float
+) -> np.ndarray:
     """Get a Hamiltonian of ...
 
     Args:
         N: the number of dimension for the cavity (size of fock space)
         eps: xxx
-    
+
     Return:
         Hamiltonian - np.ndarray[complex], dims=[N,N]
     """
@@ -94,7 +95,6 @@ def QHami(N: int, eps: float, g: float, d:float, omegaC0:float, L:float, R:float
         + omega * np.matmul(a.T, a)
     )
     return H
-
 
 
 def Rabi(flist, params):
@@ -558,5 +558,3 @@ def circuit_spectrum_QR(Ev, Ek, params, nlist, qspace):
         for q in range(bn):
             E1[q].append(evals1[q])
     return E1
-
-

@@ -1,16 +1,12 @@
 """A module for post-processing to extract peak/dip structures from two-dimensional spectrum."""
 
-import math
-from numbers import Number
 from typing import Callable, Iterable, Mapping, Sequence
 
 import cv2
-import numpy as np
 import matplotlib.pyplot as plt
-
-from skimage.filters import sato
+import numpy as np
 from skimage import measure
-from tqdm.auto import tqdm
+from skimage.filters import sato
 
 
 def normalize(x) -> np.ndarray:

@@ -1,4 +1,2 @@
-from . import image_processing
-from . import qfitter
-
+from . import image_processing, qfitter
 from ._version import __version__
