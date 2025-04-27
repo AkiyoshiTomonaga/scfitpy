@@ -2029,10 +2029,12 @@ dependencies = [
     { name = "scipy" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 cupy = [
     { name = "cupy" },
 ]
+
+[package.dev-dependencies]
 dev = [
     { name = "h5py" },
     { name = "ipython" },
@@ -2045,6 +2047,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cupy", marker = "extra == 'cupy'" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "opencv-python" },
@@ -2053,7 +2056,6 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-cupy = [{ name = "cupy" }]
 dev = [
     { name = "h5py" },
     { name = "ipython" },

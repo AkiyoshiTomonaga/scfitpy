@@ -1,17 +1,54 @@
 [project]
 name = "scfitpy"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Add your description here"
+authors = [
+    { name = "Akiyoshi Tomonaga", email = "akiyoshi.tomonaga@aist.go.jp" },
+    { name = "Kosuke Mizuno", email = "kosuke.mizuno@aist.go.jp" },
+]
+maintainers = [
+    { name = "Akiyoshi Tomonaga", email = "akiyoshi.tomonaga@aist.go.jp" },
+    { name = "Kosuke Mizuno", email = "kosuke.mizuno@aist.go.jp" },
+]
 readme = "README.md"
+classifiers = ["Programming Language :: Python", "Private :: Do Not Upload"]
 requires-python = ">=3.10"
 
 dependencies = ["numpy", "matplotlib", "scipy", "scikit-image", "opencv-python"]
 
 [dependency-groups]
 dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm", "jq"]
+
+[project.optional-dependencies]
 cupy = ["cupy"]
+
+[project.urls]
+Homepage = "https://github.com/AkiyoshiTomonaga/scfitpy"
+Repository = "https://github.com/AkiyoshiTomonaga/scfitpy.git"
 
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch]
+version.source = "vcs"
+build.hooks.vcs.version-file = "src/scfitpy/_version.py"
+
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+ignore = ['F401']
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "auto"
+
+
+[tool.mypy]
+ignore_missing_imports = true

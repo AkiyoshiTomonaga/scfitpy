@@ -8,9 +8,15 @@ TBD
 
 ### Installation
 
-- `git clone <this repo>`
-- `pip install .[cupy]` or `pip install git+https://github.com/AkiyoshiTomonaga/scfitpy.git`
-  - If you don't have a cuda environment, use `pip install .` instead. It doesn't install `cupy`.
+- via github
+  1. `pip install "scfitpy[cupy] @ git+https://github.com/AkiyoshiTomonaga/scfitpy.git"`
+- local install
+  1. `git clone <this repo>`
+  1. `pip install .[cupy]`
+     - If you don't have a cuda environment, use `pip install .` instead. It doesn't install `cupy`.
+- for development
+  1. `git clone <this repo>`
+  1. `uv sync --dev --extra cupy`
 
 ### Quick example
 
@@ -49,7 +55,7 @@ See the <LICENSE> file.
 
 ## Author information
 
-The codes in this repository are written by [Akiyoshi Tomonaga](https://github.com/AkiyoshiTomonaga) and [Kosuke Mizuno](https://github.com/KosukeMizunoAIST)
+The codes in this repository are written by [Akiyoshi Tomonaga](https://github.com/AkiyoshiTomonaga) and [Kosuke Mizuno](https://github.com/KosukeMizunoAIST).
 
 
 # 作業メモ
@@ -57,7 +63,7 @@ The codes in this repository are written by [Akiyoshi Tomonaga](https://github.c
 - [x] ライセンスどうするか
 - [x] ディレクトリ構造を直す
 - [x] pip install で使えるパッケージにする。
-- [ ] dependency整理する。`cupy`が処理外になっている
+- [x] dependency整理する。`cupy`が処理外になっている
 - [ ] 処理とノートを分離する
 - コードのreadability/qualityをあげる
   - [x] コーディング規約をいれる
