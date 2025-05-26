@@ -4,7 +4,7 @@ for "Efficient spectrum analysis for multi-junction nonlinear superconducting ci
 ## What's this?
 
 ![Image of peak trace and flow of the peak trace program.](./images/image.png)
-TBD
+The extraction of transition frequencies from a spectrum has conventionally relied on empirical methods, and particularly in complex systems it is a time-consuming and cumbersome process. To address this challenge, we establish an semi-automated efficient and precise spectrum analysis method. It, at first, employs image processing methods to extract transition frequencies, subsequently estimates Hamiltonians of superconducting quantum circuit containing multiple Josephson junctions. Additionally, we determine the suitable range of approximations in simulation methods, evaluating the physical reliability of analyses.
 
 ## Usage
 
