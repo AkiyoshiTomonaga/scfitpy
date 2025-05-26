@@ -21,15 +21,6 @@ The extraction of transition frequencies from a spectrum has conventionally reli
   1. `git clone <this repo>`
   1. `uv sync --dev --extra cupy`
 
-### Quick example
-
-```python
-from scfitpy import Qfit
-
-... # 後で書く
-
-```
-
 
 ### Advanced Usages
 
