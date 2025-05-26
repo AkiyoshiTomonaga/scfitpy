@@ -1,8 +1,11 @@
 # scfitpy
+for "Efficient spectrum analysis for multi-junction nonlinear superconducting circuit"
+https://doi.org/10.48550/arXiv.2503.10202
 
 ## What's this?
 
-TBD
+![Image of peak trace and flow of the peak trace program.](./images/image.png)
+The extraction of transition frequencies from a spectrum has conventionally relied on empirical methods, and particularly in complex systems it is a time-consuming and cumbersome process. To address this challenge, we establish an semi-automated efficient and precise spectrum analysis method. It, at first, employs image processing methods to extract transition frequencies, subsequently estimates Hamiltonians of superconducting quantum circuit containing multiple Josephson junctions. Additionally, we determine the suitable range of approximations in simulation methods, evaluating the physical reliability of analyses.
 
 ## Usage
 
@@ -18,19 +21,10 @@ TBD
   1. `git clone <this repo>`
   1. `uv sync --dev --extra cupy`
 
-### Quick example
-
-```python
-from scfitpy import Qfit
-
-... # 後で書く
-
-```
-
 
 ### Advanced Usages
 
-- `./notebooks/001_PeakTrace.ipynb`: TBD
+- `./notebooks/001_PeakTrace.ipynb`
 - `./notebooks/101_RabiFit.ipynb`: TBD
 - `./notebooks/102_4JJ_CircFit.ipynb`: TBD
 - `./notebooks/201_RabiSpaceCheck.ipynb`: TBD
@@ -44,10 +38,9 @@ Each notebook corresponds to each step in the paper.
 
 ## Acknowledgements
 
-- LINK to PAPER
+- https://doi.org/10.48550/arXiv.2503.10202
 
-- ACK to BUDGETS
-
+This work was supported by the Japan Society for the Promotion of Science (JSPS) KAKENHI (Grant Numbers JP22K21294 and JP23K13048).
 
 ## LICENSE
 
@@ -56,16 +49,3 @@ See the <LICENSE> file.
 ## Author information
 
 The codes in this repository are written by [Akiyoshi Tomonaga](https://github.com/AkiyoshiTomonaga) and [Kosuke Mizuno](https://github.com/KosukeMizunoAIST).
-
-
-# 作業メモ
-
-- [x] ライセンスどうするか
-- [x] ディレクトリ構造を直す
-- [x] pip install で使えるパッケージにする。
-- [x] dependency整理する。`cupy`が処理外になっている
-- [ ] 処理とノートを分離する
-- コードのreadability/qualityをあげる
-  - [x] コーディング規約をいれる
-  - [x] コードを適切に分割する
-  - [ ] 自動テストを書く
