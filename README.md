@@ -47,10 +47,8 @@ Each notebook corresponds to each step in the paper.
 
 ## Acknowledgements
 
-- LINK to PAPER
 - https://doi.org/10.48550/arXiv.2503.10202
 
-- ACK to BUDGETS
 This work was supported by the Japan Society for the Promotion of Science (JSPS) KAKENHI (Grant Numbers JP22K21294 and JP23K13048).
 
 ## LICENSE
