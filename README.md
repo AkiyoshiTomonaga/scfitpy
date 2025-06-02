@@ -25,7 +25,7 @@ The extraction of transition frequencies from a spectrum has conventionally reli
 ### Advanced Usages
 
 - `./notebooks/001_PeakTrace.ipynb`
-- `./notebooks/101_RabiFit.ipynb`: TBD
+- `./notebooks/101_RabiFit.ipynb`
 - `./notebooks/102_4JJ_CircFit.ipynb`: TBD
 - `./notebooks/201_RabiSpaceCheck.ipynb`: TBD
 - `./notebooks/202_QspaceCheck.ipynb`: TBD
