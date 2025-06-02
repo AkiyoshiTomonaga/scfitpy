@@ -28,11 +28,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install build
-          pip install uv  # uvのインストールを追加
+          pip install uv  # uvをインストール
 
-      - name: Build package
-        run: python -m build
-
-      - name: Publish package using uv publish
+      - name: Build package with uv
         run: |
-          uv publish --repository pypi dist/*  # uv publishを使用してPyPIに公開
+          uv build  # uvを使ってパッケージをビルド
+
+      - name: Publish package using uv
+        run: |
+          uv publish --repository pypi dist/*  # uv publishでPyPIに公開
