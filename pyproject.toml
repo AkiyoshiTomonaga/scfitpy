@@ -19,8 +19,9 @@ dependencies = ["numpy", "matplotlib", "scipy", "scikit-image", "opencv-python"]
 [dependency-groups]
 dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm", "jq"]
 
-[project.optional-dependencies]
-cupy = ["cupy"]
+# Note: 作業用に一時的に消す. 何故か指定しない場合も入ってしまうが回避方法わからない
+# [project.optional-dependencies]
+# cupy = ["cupy"]
 
 [project.urls]
 Homepage = "https://github.com/AkiyoshiTomonaga/scfitpy"
