@@ -404,12 +404,13 @@ def determine_peak_positions(
         }
 
     if with_plot:
-        fig, (ax, ax_pos) = plt.subplots(1, 2, figsize=(14, 6))
+        fig, (ax, ax_orig, ax_pos) = plt.subplots(1, 3, figsize=(15, 4))
         X, Y = np.meshgrid(xaxis, yaxis)
         ax.pcolor(X, Y, img)
+        ax_orig.pcolor(X, Y, img)
         for i, (kw, positions) in enumerate(peak_dict.items()):
             pos = np.array(positions)
-            ax.scatter(pos[:, 0], pos[:, 1], c="red", label=kw, marker="x", alpha=0.1)
+            ax.scatter(pos[:, 0], pos[:, 1], c="red", label=kw, marker="x", alpha=0.5)
             ax_pos.scatter(pos[:, 0], pos[:, 1], c=f"C{i % 10}", label=kw, marker=".")
         ax_pos.set_xlim(ax.get_xlim())
         ax_pos.set_ylim(ax.get_ylim())

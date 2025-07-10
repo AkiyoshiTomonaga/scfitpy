@@ -1,3 +1,5 @@
+from math import pi
+
 import numpy as np
 import pytest
 
@@ -145,17 +147,17 @@ def test_all_twoline():
 
 def test_all_single_curve():
     # preparation
-    prefix = "./outs/test_all_single_curve"
+    prefix = "./outs/test_all_single_curve_"
     np.random.seed(42)
 
     xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
     fs = np.linspace(100, 200, 201)  # frequency-axis
-    amps = 20 * np.ones_like(xs)
     pts = np.full_like(
         xs, 40 * xs**2 + np.average(fs) - 30
     )  # dip point: y=y0 (constant)
     rtol = 0.01  # relative tolerance for analysis
 
+    amps = 20 * np.ones_like(xs)
     spec = np.array(
         [a / (0.05**2 + (fs - f0) ** 2) for a, f0 in zip(amps, pts)]
     ).T  # 形状固定のLorentzian
@@ -208,12 +210,149 @@ def test_all_single_curve():
 
     # check
     assert pytest.approx(xs) == [v for v, _ in result["a"]]
-    assert pytest.approx(pts, rtol) != [v for _, v in result["a"]]
+    assert pytest.approx(pts, rtol) == [v for _, v in result["a"]]
+
+
+def test_all_steep_curve():
+    # preparation
+    prefix = "./outs/test_all_steep_curve_"
+    np.random.seed(42)
+
+    xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
+    fs = np.linspace(100, 200, 201)  # frequency-axis
+    pts = np.full_like(
+        xs, 200 * xs**3 + np.average(fs)  # 左右ではなく上下に突き抜ける場合
+    )  # dip point: y=y0 (constant)
+    rtol = 0.01  # relative tolerance for analysis
+
+    amps = 20 * np.ones_like(xs)
+    spec = np.array(
+        [a / (0.05**2 + (fs - f0) ** 2) for a, f0 in zip(amps, pts)]
+    ).T  # 形状固定のLorentzian
+    spec += np.random.normal(size=spec.shape)
+    mag = 20 * np.log10(np.abs(spec))
+
+    # run
+    apply_nofilter(mag, with_plot=True, filename_plot=prefix + "mag.png")
+    mag_filtered = apply_sato_filter(
+        mag,
+        1,
+        False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_filtered.png",
+    )
+    cont_list = find_contours(
+        mag_filtered,
+        level=0.025,
+        threshold_length=1000,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_find_contours.png",
+    )
+    cont_dict = assign_contours(
+        cont_list,
+        {"a": (1, 2)},
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "contours.png",
+    )
+    region_dict = determine_regions(
+        mag,
+        cont_dict,
+        kernel=5,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "regions.png",
+    )
+    result = determine_peak_positions(
+        mag,
+        region_dict,
+        xaxis=xs,
+        yaxis=fs,
+        eliminate_nan=False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "peaks.png",
+    )
+
+    # check
+    assert pytest.approx(xs) == [v for v, _ in result["a"]]
+    assert pytest.approx(pts, rtol) == [v for _, v in result["a"]]
+
+
+def test_all_isolated_curve():
+    # preparation
+    prefix = "./outs/test_all_isolated_curve_"
+    np.random.seed(42)
+
+    xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
+    fs = np.linspace(100, 200, 201)  # frequency-axis
+    pts = np.full_like(
+        xs, 40 * xs**2 + np.average(fs) - 30
+    )  # dip point: y=y0 (constant)
+    rtol = 0.01  # relative tolerance for analysis
+
+    amps = 101 * (1 - np.tanh(xs * 10) ** 4)
+    print(amps)
+    spec = np.array(
+        [a / (0.1**2 + (fs - f0) ** 2) for a, f0 in zip(amps, pts)]
+    ).T  # 形状固定のLorentzian
+    spec += np.random.normal(size=spec.shape)
+    mag = 20 * np.log10(np.abs(spec))
+
+    # run
+    apply_nofilter(mag, with_plot=True, filename_plot=prefix + "mag.png")
+    mag_filtered = apply_sato_filter(
+        mag,
+        1,
+        False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_filtered.png",
+    )
+    cont_list = find_contours(
+        mag_filtered,
+        level=0.05,
+        threshold_length=10,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_find_contours.png",
+    )
+    cont_dict = assign_contours(
+        cont_list,
+        {"a": (4,)},
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "contours.png",
+    )
+    region_dict = determine_regions(
+        mag,
+        cont_dict,
+        kernel=5,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "regions.png",
+    )
+    result = determine_peak_positions(
+        mag,
+        region_dict,
+        xaxis=xs,
+        yaxis=fs,
+        eliminate_nan=False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "peaks.png",
+    )
+
+    # check
+    assert pytest.approx(xs) == [v for v, _ in result["a"]]
+    assert pytest.approx(pts, rtol) == [v for _, v in result["a"]]
 
 
 def test_all_single_disjointcurve():
     # preparation
-    prefix = "./outs/test_all_single_disjointcurve"
+    prefix = "./outs/test_all_single_disjointcurve_"
     np.random.seed(42)
 
     xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
@@ -326,7 +465,7 @@ def test_all_curves():
     )
     cont_dict = assign_contours(
         cont_list,
-        {"left": (288,), "right": (277,), "connected": (190, 200)},
+        {"connected": (190, 200), "left": (288,), "right": (277,)},
         with_plot=True,
         show=False,
         filename_plot=prefix + "contours.png",
