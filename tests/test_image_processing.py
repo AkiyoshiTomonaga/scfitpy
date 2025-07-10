@@ -281,3 +281,79 @@ def test_all_single_disjointcurve():
     assert pytest.approx(pts[:36], rtol) != [v for _, v in result["left"]][:36]
     assert pytest.approx(pts[59:], rtol) == [v for _, v in result["right"]][59:]
     assert pytest.approx(pts[58:], rtol) != [v for _, v in result["right"]][58:]
+
+
+def test_all_curves():
+    # preparation
+    prefix = "./outs/test_all_curves_"
+    np.random.seed(42)
+
+    xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
+    fs = np.linspace(100, 200, 201)  # frequency-axis
+    amps = np.tanh(xs) ** 4 * 20
+    pts = np.full_like(
+        xs, 40 * xs**2 + np.average(fs) - 30
+    )  # dip point: y=y0 (constant)
+    rtol = 0.01  # relative tolerance for analysis
+
+    amps = np.tanh(xs) ** 4 * 30
+    spec = (
+        np.array([25 / (0.05**2 + (fs - f0) ** 2) for f0 in pts]).T
+        + np.array(
+            [a / (0.05**2 + (fs - (f0 + 10)) ** 2) for a, f0 in zip(amps, pts)]
+        ).T
+    )
+    spec += np.random.normal(size=spec.shape)
+    mag = 20 * np.log10(np.abs(spec))
+
+    # run
+    apply_nofilter(mag, with_plot=True, filename_plot=prefix + "mag.png")
+    mag_filtered = apply_sato_filter(
+        mag,
+        1,
+        False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_filtered.png",
+    )
+    cont_list = find_contours(
+        mag_filtered,
+        level=0.025,
+        threshold_length=100,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_find_contours.png",
+    )
+    cont_dict = assign_contours(
+        cont_list,
+        {"left": (288,), "right": (277,), "connected": (190, 200)},
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "contours.png",
+    )
+    region_dict = determine_regions(
+        mag,
+        cont_dict,
+        kernel=5,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "regions.png",
+    )
+    result = determine_peak_positions(
+        mag,
+        region_dict,
+        xaxis=xs,
+        yaxis=fs,
+        eliminate_nan=False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "peaks.png",
+    )
+
+    # check
+    assert pytest.approx(xs) == [v for v, _ in result["left"]]
+    assert pytest.approx(xs) == [v for v, _ in result["right"]]
+    assert pytest.approx(pts[:35], rtol) == [v for _, v in result["left"]][:35]
+    assert pytest.approx(pts[:36], rtol) != [v for _, v in result["left"]][:36]
+    assert pytest.approx(pts[59:], rtol) == [v for _, v in result["right"]][59:]
+    assert pytest.approx(pts[58:], rtol) != [v for _, v in result["right"]][58:]
