@@ -1,5 +1,6 @@
 """A module for post-processing to extract peak/dip structures from two-dimensional spectrum."""
 
+from math import isnan
 from typing import Callable, Iterable, Mapping, Sequence
 
 import cv2
@@ -59,8 +60,8 @@ def apply_image_filter(
 
 def apply_sato_filter(
     img: MatLike,
-    sigmas: float | Iterable[float] | NDArray[np.floating],
-    black_ridges: bool,
+    sigmas: float | Iterable[float] | NDArray[np.floating] = 4.0,
+    black_ridges: bool = False,
     with_plot=False,
     filename_plot: str | None = None,
     show=True,
@@ -95,6 +96,26 @@ def apply_sato_filter(
     )
 
 
+def apply_nofilter(
+    img: MatLike,
+    with_plot=False,
+    filename_plot: str | None = None,
+    show=True,
+    **kwargs,
+) -> MatLike:
+    """Apply image processing without any processing."""
+    img = normalize(img)
+
+    return apply_image_filter(
+        img,
+        func=lambda img: img,
+        with_plot=with_plot,
+        filename_plot=filename_plot,
+        show=show,
+        **kwargs,
+    )
+
+
 def _calc_poly_length(polygon: NDArray[np.floating]) -> float:
     """閉曲線ポリゴンの周囲長を計算"""
     assert np.isclose(polygon[0], polygon[-1]).all()
@@ -108,7 +129,7 @@ def _calc_poly_length(polygon: NDArray[np.floating]) -> float:
 
 def find_contours(
     img: MatLike,
-    level: float,
+    level: float | None = None,
     threshold_length: float | None = None,
     with_plot=False,
     filename_plot: str | None = None,
@@ -190,7 +211,7 @@ def find_contours(
 
 def assign_contours(
     cont_list: Sequence[NDArray[np.floating]],
-    dict_indexes: dict[str, tuple[int, ...]],
+    dict_indexes: dict[str, tuple[int, ...] | None] | None = None,
     with_plot=False,
     filename_plot: str | None = None,
     show=True,
@@ -203,7 +224,16 @@ def assign_contours(
         >>> {"a": ..., "b": ..., "c": ...}
     """
 
-    cont_dict = {k: [cont_list[i] for i in ids] for k, ids in dict_indexes.items()}
+    if dict_indexes is None:
+        dict_indexes = {"all": None}
+
+    def _extract(idexes: Sequence[int] | None):
+        if idexes is None:
+            return [v for v in cont_list]
+        else:
+            return [cont_list[i] for i in idexes]
+
+    cont_dict = {k: _extract(ids) for k, ids in dict_indexes.items()}
 
     if with_plot:
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -307,11 +337,18 @@ def determine_regions(
     return region_dict
 
 
+def _argmax(xs, ys) -> int:
+    """ピーク位置決定"""
+    return int(np.nanargmax(ys))
+
+
 def determine_peak_positions(
     img: MatLike,
-    region_dict: Mapping[str, NDArray[np.integer]],
+    region_dict: Mapping[str, MatLike],
     xaxis: NDArray[np.floating] | Sequence | None = None,
     yaxis: NDArray[np.floating] | Sequence | None = None,
+    method: Callable[[NDArray[np.floating], NDArray[np.floating]], int] = _argmax,
+    eliminate_nan=True,
     with_plot=False,
     filename_plot: str | None = None,
     show=True,
@@ -323,6 +360,7 @@ def determine_peak_positions(
         region_dict (Mapping[str, np.ndarray[int]]): _description_
         xaxis (np.ndarray | Sequence | None, optional): _description_. Defaults to None.
         yaxis (np.ndarray | Sequence | None, optional): _description_. Defaults to None.
+        method: ピーク位置を決定するアルゴリズム
         with_plot (bool, optional): _description_. Defaults to False.
         filename_plot (str, optional): _description_. Defaults to None.
 
@@ -345,18 +383,24 @@ def determine_peak_positions(
         k: [] for k in region_dict.keys()
     }
     for k, region in region_dict.items():
-        _img = np.copy(img)
+        _img = np.array(img, dtype=np.float128)
         _img[np.where(region == 0)] = np.nan
 
         for idx_x in range(w):
-            vs = _img[:, idx_x]
             try:
-                idx_ypeak = int(np.nanargmax(vs))
-            except ValueError:
-                pass  # all-nan slice, その軸に値が見つからないケース
+                idx_ypeak = method(xaxis, _img[:, idx_x])
+
+            except ValueError:  # all-nan slice, その軸に値が見つからないケース
+                peak_dict[k].append((xaxis[idx_x], np.nan))
+
             else:
                 peak_dict[k].append((xaxis[idx_x], yaxis[idx_ypeak]))
-    # peak_dict = {k: np.array(pos) for k, pos in peak_dict.items()}
+
+    if eliminate_nan:
+        peak_dict = {
+            k: [v for v in indexes if not isnan(v[1])]
+            for k, indexes in peak_dict.items()
+        }
 
     if with_plot:
         fig, (ax, ax_pos) = plt.subplots(1, 2, figsize=(14, 6))

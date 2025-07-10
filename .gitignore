@@ -1,5 +1,5 @@
-notebooks/outs/*.*
-!notebooks/outs/.gitkeep
+**/outs/*.*
+!**/outs/.gitkeep
 _version.py
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
