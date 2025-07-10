@@ -7,8 +7,7 @@ from cv2.typing import MatLike
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
-from skimage import measure
-from skimage.filters import sato
+from skimage import measure, filters
 
 
 def normalize(x) -> NDArray[np.floating]:
@@ -19,11 +18,15 @@ def normalize(x) -> NDArray[np.floating]:
     return (x - mn) / (mx - mn)
 
 
+DEFAULT_KWARGS_SAVEFIG = dict(bbox_inches="tight", pad_inches=0.5, dpi=500)
+
+
 def apply_image_filter(
     img: MatLike,
     func: Callable[[MatLike], MatLike],
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
     **kwargs,
 ) -> MatLike:
     """Apply image processing for an arbitrary filter function.
@@ -46,7 +49,10 @@ def apply_image_filter(
         cbar_num_format = "%.2f"
         plt.colorbar(mappable, ax=ax, format=cbar_num_format)
         plt.tight_layout()
-        plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
+        if filename_plot is not None:
+            plt.savefig(filename_plot, **DEFAULT_KWARGS_SAVEFIG)
+        if show:
+            plt.show()
 
     return result
 
@@ -57,6 +63,7 @@ def apply_sato_filter(
     black_ridges: bool,
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
     **kwargs,
 ) -> MatLike:
     """Apply image processing (sato-function).
@@ -79,7 +86,12 @@ def apply_sato_filter(
     kwargs["black_ridges"] = black_ridges
 
     return apply_image_filter(
-        img, func=sato, with_plot=with_plot, filename_plot=filename_plot, **kwargs
+        img,
+        func=filters.sato,
+        with_plot=with_plot,
+        filename_plot=filename_plot,
+        show=show,
+        **kwargs,
     )
 
 
@@ -100,6 +112,7 @@ def find_contours(
     threshold_length: float | None = None,
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
     **kwargs,
 ) -> list[NDArray[np.floating]]:
     """Find contours from a 2d spectrum.
@@ -168,8 +181,9 @@ def find_contours(
         ax_L.set_xlabel("# of contours")
 
         if filename_plot is not None:
-            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
-        plt.show()
+            plt.savefig(filename_plot, **DEFAULT_KWARGS_SAVEFIG)
+        if show:
+            plt.show()
 
     return contours
 
@@ -179,6 +193,7 @@ def assign_contours(
     dict_indexes: dict[str, tuple[int, ...]],
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
 ) -> dict[str, list[NDArray[np.floating]]]:
     """Make a dict of contours. key=label, val=contour
 
@@ -206,8 +221,9 @@ def assign_contours(
             ax.legend()
 
         if filename_plot is not None:
-            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
-        plt.show()
+            plt.savefig(filename_plot, **DEFAULT_KWARGS_SAVEFIG)
+        if show:
+            plt.show()
 
     return cont_dict
 
@@ -218,6 +234,7 @@ def determine_regions(
     kernel: int | NDArray = 3,
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
 ) -> dict[str, MatLike]:
     """Extract regions to freq-determination.
 
@@ -283,8 +300,9 @@ def determine_regions(
                 )
 
         if filename_plot is not None:
-            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
-        plt.show()
+            plt.savefig(filename_plot, **DEFAULT_KWARGS_SAVEFIG)
+        if show:
+            plt.show()
 
     return region_dict
 
@@ -296,6 +314,7 @@ def determine_peak_positions(
     yaxis: NDArray[np.floating] | Sequence | None = None,
     with_plot=False,
     filename_plot: str | None = None,
+    show=True,
 ) -> dict[str, list[tuple[float, float]]]:
     """! TODO あとで書く
 
@@ -351,7 +370,8 @@ def determine_peak_positions(
         ax_pos.set_ylim(ax.get_ylim())
         ax_pos.legend()
         if filename_plot is not None:
-            plt.savefig(filename_plot, bbox_inches="tight", pad_inches=0.5, dpi=500)
-        plt.show()
+            plt.savefig(filename_plot, **DEFAULT_KWARGS_SAVEFIG)
+        if show:
+            plt.show()
 
     return peak_dict
