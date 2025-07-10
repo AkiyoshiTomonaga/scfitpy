@@ -1,6 +1,7 @@
 """A module for post-processing to extract peak/dip structures from two-dimensional spectrum."""
 
-from math import isnan
+import itertools
+from math import isclose, isnan
 from typing import Callable, Iterable, Mapping, Sequence
 
 import cv2
@@ -116,10 +117,8 @@ def apply_nofilter(
     )
 
 
-def _calc_poly_length(polygon: NDArray[np.floating]) -> float:
-    """閉曲線ポリゴンの周囲長を計算"""
-    assert np.isclose(polygon[0], polygon[-1]).all()
-
+def _calc_poly_length(polygon: NDArray) -> float:
+    """ポリゴンの長さを計算"""
     xs, ys = np.array(polygon).T
     dx = xs[1:] - xs[:-1]
     dy = ys[1:] - ys[:-1]
@@ -154,17 +153,7 @@ def find_contours(
         list of polygons
     """
 
-    def _ensure_closed(polygon) -> NDArray[np.floating]:
-        """polygon --> enclosed polygon"""
-        assert len(polygon) >= 3
-
-        if np.isclose(polygon[0], polygon[-1]).all():
-            return polygon
-        return np.concatenate((polygon, [polygon[0]]))
-
-    contours = [
-        _ensure_closed(poly) for poly in measure.find_contours(img, level, **kwargs)
-    ]
+    contours = [(poly) for poly in measure.find_contours(img, level, **kwargs)]
     len_list = [_calc_poly_length(poly) for poly in contours]
 
     if threshold_length is None:
@@ -245,9 +234,7 @@ def assign_contours(
                     poly[:, 1],
                     poly[:, 0],
                     f"C{i % 10}-",
-                    label=(
-                        kw if j == 0 else None
-                    ),  # 各閉ポリゴン群で一つだけラベルする
+                    label=(kw if j == 0 else None),  # 各ポリゴン群で一つだけラベルする
                 )
             ax.legend()
 
@@ -257,6 +244,100 @@ def assign_contours(
             plt.show()
 
     return cont_dict
+
+
+def _is_closed(polygon: NDArray[np.floating]) -> bool:
+    assert len(polygon) >= 3
+    return all(np.isclose(polygon[0], polygon[-1]))
+
+
+def _make_enclosure(
+    polygons: Sequence[NDArray[np.floating]], h: int, w: int
+) -> list[NDArray[np.floating]]:
+    """ポリゴンのリストを受け取って、閉ポリゴンになるように追加したリストを返す
+
+    仮定
+    - コーナーは必ず範囲外にある
+    - 包含関係にはならない
+    """
+    # Note: +yが上辺. y=0, ..., h-1 / x=0, ..., w-1
+
+    # 1個だけ → 閉じているか、閉じるべきエッジが1か所あるはず
+    # 2個 → 閉じるべきエッジが2か所あるはず
+    # n個 → 閉じるべきエッジがn箇所あるはず
+
+    if len(polygons) == 1:
+        poly = polygons[0]
+        if _is_closed(poly):
+            return [poly]
+        else:
+            return [poly] + [poly[0]]
+
+    else:  # case: multi polygons are found.
+        # 端点のリスト
+        edge_points = list(
+            itertools.chain.from_iterable([[p[0], p[-1]] for p in polygons])
+        )
+
+        # 左回りにエッジを走査して、端点のリストを順に作っていく
+        # その後、2個ずつリストに加える。角は閉包に含まれないと仮定しているので、
+        # (終点,始点) のペアが順に得られる
+        _xval = lambda v: v[1]  # noqa: E731
+        _yval = lambda v: v[0]  # noqa: E731
+        sorted_edge_points = (
+            sorted(
+                [pos for pos in edge_points if isclose(pos[1], 0.0)],  # left edge
+                key=_yval,
+                reverse=True,
+            )
+            + sorted(
+                [pos for pos in edge_points if isclose(pos[0], 0.0)],  # bottom
+                key=_xval,
+            )
+            + sorted(
+                [pos for pos in edge_points if isclose(pos[1], w - 1)],  # right
+                key=_yval,
+            )
+            + sorted(
+                [pos for pos in edge_points if isclose(pos[0], h - 1)],  # top
+                key=_xval,
+                reverse=True,
+            )
+        )
+
+        polygons = list(polygons) + [
+            np.array(pair) for pair in itertools.pairwise(sorted_edge_points)
+        ]
+
+        # 順に接続するように並び替えする
+        _polygons = []
+        while len(polygons) > 0:
+            pivot = polygons.pop()
+
+            _polygons.append(pivot)
+            polygons = sorted(
+                polygons,
+                key=lambda p: min(
+                    [np.linalg.norm(p[0] - pivot[-1]), np.linalg.norm(p[0] - pivot[0])]
+                ),
+                reverse=True,
+            )  # 始点がpivot終点に近い順に並び替え
+
+        # 向き変え
+        __polygons = [_polygons.pop(0)]
+        for poly in _polygons:
+            last_tail = __polygons[-1][-1]
+
+            pivot = _polygons.pop()
+            head = pivot[0]
+            tail = pivot[-1]
+
+            if np.linalg.norm(head - last_tail) < np.linalg.norm(tail - last_tail):
+                __polygons.append(pivot)
+            else:
+                __polygons.append(pivot[::-1])
+
+        return __polygons
 
 
 def determine_regions(
@@ -274,7 +355,7 @@ def determine_regions(
 
     Args:
         img:
-        cont_dict: key=label, value=list of enclosed-polygon
+        cont_dict: key=label, value=list of polygons
         offset: size of dilation
         ...
 
@@ -286,13 +367,13 @@ def determine_regions(
         contours: Sequence[NDArray[np.floating]],
     ) -> MatLike:
         _img: MatLike = np.zeros(img.shape, np.uint8)
-        pts = [
-            np.flip(
-                np.array(poly, dtype=int), axis=1
-            )  # converting positions to coordinates for cv2
-            for poly in contours
-        ]
-        return cv2.fillPoly(_img, pts, 1)  # type: ignore
+
+        contours = _make_enclosure(contours, *img.shape)
+
+        # converting positions to coordinates for cv2
+        pts = np.concat([np.flip(poly, axis=1) for poly in contours])
+
+        return cv2.fillPoly(_img, [pts], (1,))
 
     # make regeion (binary image)
     region_img_dict = {

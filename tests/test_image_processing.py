@@ -221,7 +221,8 @@ def test_all_steep_curve():
     xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
     fs = np.linspace(100, 200, 201)  # frequency-axis
     pts = np.full_like(
-        xs, 200 * xs**3 + np.average(fs)  # 左右ではなく上下に突き抜ける場合
+        xs,
+        200 * xs**3 + np.average(fs),  # 左右ではなく上下に突き抜ける場合
     )  # dip point: y=y0 (constant)
     rtol = 0.01  # relative tolerance for analysis
 
@@ -253,6 +254,75 @@ def test_all_steep_curve():
     cont_dict = assign_contours(
         cont_list,
         {"a": (1, 2)},
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "contours.png",
+    )
+    region_dict = determine_regions(
+        mag,
+        cont_dict,
+        kernel=5,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "regions.png",
+    )
+    result = determine_peak_positions(
+        mag,
+        region_dict,
+        xaxis=xs,
+        yaxis=fs,
+        eliminate_nan=False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "peaks.png",
+    )
+
+    # check
+    assert pytest.approx(xs) == [v for v, _ in result["a"]]
+    assert pytest.approx(pts, rtol) == [v for _, v in result["a"]]
+
+
+def test_all_steep_curve2():
+    # preparation
+    prefix = "./outs/test_all_steep_curve2_"
+    np.random.seed(42)
+
+    xs = np.linspace(-1, 1, 101)  # sweep-axis, like dc bias
+    fs = np.linspace(100, 200, 201)  # frequency-axis
+    pts = np.full_like(
+        xs,
+        200 * xs**2 + np.average(fs),  # 上からきて上に抜ける場合
+    )  # dip point: y=y0 (constant)
+    rtol = 0.01  # relative tolerance for analysis
+
+    amps = 20 * np.ones_like(xs)
+    spec = np.array(
+        [a / (0.05**2 + (fs - f0) ** 2) for a, f0 in zip(amps, pts)]
+    ).T  # 形状固定のLorentzian
+    spec += np.random.normal(size=spec.shape)
+    mag = 100 * np.log10(np.abs(spec))
+
+    # run
+    apply_nofilter(mag, with_plot=True, filename_plot=prefix + "mag.png")
+    mag_filtered = apply_sato_filter(
+        mag,
+        1,
+        False,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_filtered.png",
+    )
+    cont_list = find_contours(
+        mag_filtered,
+        level=0.03,
+        threshold_length=10,
+        with_plot=True,
+        show=False,
+        filename_plot=prefix + "mag_find_contours.png",
+    )
+    cont_dict = assign_contours(
+        cont_list,
+        {"a": (245, 255)},
         with_plot=True,
         show=False,
         filename_plot=prefix + "contours.png",
