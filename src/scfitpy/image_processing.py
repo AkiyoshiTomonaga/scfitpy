@@ -199,6 +199,7 @@ def find_contours(
         ax_L.axhline(y=threshold_length, color="k", ls="dashed")
         ax_L.grid()
         ax_L.set_ylabel("Contour length")
+        ax_L.set_yscale("log")
         ax_L.set_xlabel("# of contours")
 
         if filename_plot is not None:
