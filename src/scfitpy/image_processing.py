@@ -3,13 +3,15 @@
 from typing import Callable, Iterable, Mapping, Sequence
 
 import cv2
+from cv2.typing import MatLike
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray, ArrayLike
 from skimage import measure
 from skimage.filters import sato
 
 
-def normalize(x) -> np.ndarray:
+def normalize(x) -> NDArray[np.floating]:
     """x in R --> [0..1]"""
     x = np.array(x)
     mn = x.min(axis=None, keepdims=True)
@@ -18,12 +20,12 @@ def normalize(x) -> np.ndarray:
 
 
 def apply_image_filter(
-    img: np.ndarray,
-    func: Callable[..., np.ndarray],
+    img: MatLike,
+    func: Callable[[MatLike], MatLike],
     with_plot=False,
-    filename_plot: str = None,
+    filename_plot: str | None = None,
     **kwargs,
-) -> np.ndarray:
+) -> MatLike:
     """Apply image processing for an arbitrary filter function.
 
     Args:
@@ -50,13 +52,13 @@ def apply_image_filter(
 
 
 def apply_sato_filter(
-    img: np.ndarray,
-    sigmas: float | Iterable[float],
+    img: MatLike,
+    sigmas: float | Iterable[float] | NDArray[np.floating],
     black_ridges: bool,
     with_plot=False,
-    filename_plot: str = None,
+    filename_plot: str | None = None,
     **kwargs,
-) -> np.ndarray:
+) -> MatLike:
     """Apply image processing (sato-function).
 
     Args:
@@ -81,7 +83,7 @@ def apply_sato_filter(
     )
 
 
-def _calc_poly_length(polygon: np.ndarray) -> float:
+def _calc_poly_length(polygon: NDArray[np.floating]) -> float:
     """閉曲線ポリゴンの周囲長を計算"""
     assert np.isclose(polygon[0], polygon[-1]).all()
 
@@ -93,13 +95,13 @@ def _calc_poly_length(polygon: np.ndarray) -> float:
 
 
 def find_contours(
-    img: np.ndarray,
+    img: MatLike,
     level: float,
-    threshold_length: float = None,
+    threshold_length: float | None = None,
     with_plot=False,
-    filename_plot: str = None,
+    filename_plot: str | None = None,
     **kwargs,
-) -> list[np.ndarray]:
+) -> list[NDArray[np.floating]]:
     """Find contours from a 2d spectrum.
 
     1. apply `skimage.measure.find_contours`
@@ -118,7 +120,7 @@ def find_contours(
         list of polygons
     """
 
-    def _ensure_closed(polygon) -> np.ndarray:
+    def _ensure_closed(polygon) -> NDArray[np.floating]:
         """polygon --> enclosed polygon"""
         assert len(polygon) >= 3
 
@@ -132,7 +134,7 @@ def find_contours(
     len_list = [_calc_poly_length(poly) for poly in contours]
 
     if threshold_length is None:
-        threshold_length = np.median(len_list)
+        threshold_length = float(np.median(len_list))
     flg_list = [L >= threshold_length for L in len_list]
 
     if with_plot:
@@ -173,11 +175,11 @@ def find_contours(
 
 
 def assign_contours(
-    cont_list: Sequence[np.ndarray],
+    cont_list: Sequence[NDArray[np.floating]],
     dict_indexes: dict[str, tuple[int, ...]],
     with_plot=False,
-    filename_plot: str = None,
-) -> dict[str, list[np.ndarray]]:
+    filename_plot: str | None = None,
+) -> dict[str, list[NDArray[np.floating]]]:
     """Make a dict of contours. key=label, val=contour
 
     Example:
@@ -211,12 +213,12 @@ def assign_contours(
 
 
 def determine_regions(
-    img: np.ndarray,
-    cont_dict: Mapping[str, Sequence[np.ndarray]],
-    kernel: int | np.ndarray = 3,
+    img: MatLike,
+    cont_dict: Mapping[str, Sequence[NDArray[np.floating]]],
+    kernel: int | NDArray = 3,
     with_plot=False,
-    filename_plot: str = None,
-) -> dict[str, np.ndarray[int]]:
+    filename_plot: str | None = None,
+) -> dict[str, MatLike]:
     """Extract regions to freq-determination.
 
     1. Dilate contours to get band-like regions.
@@ -232,28 +234,32 @@ def determine_regions(
         A dictionary, key=label, value=list of binary images.
     """
 
-    def make_filled_img(contours: list[np.ndarray]):
-        _img = np.zeros(img.shape, np.uint8)
+    def make_filled_img(
+        contours: Sequence[NDArray[np.floating]],
+    ) -> MatLike:
+        _img: MatLike = np.zeros(img.shape, np.uint8)
         pts = [
             np.flip(
                 np.array(poly, dtype=int), axis=1
             )  # converting positions to coordinates for cv2
             for poly in contours
         ]
-        return cv2.fillPoly(_img, pts, 1)
+        return cv2.fillPoly(_img, pts, 1)  # type: ignore
 
     # make regeion (binary image)
-    region_dict = {k: make_filled_img(contours) for k, contours in cont_dict.items()}
+    region_img_dict = {
+        k: make_filled_img(contours) for k, contours in cont_dict.items()
+    }
 
     # dilate regions
     if isinstance(kernel, int):
         kernel = np.ones((kernel, kernel), np.uint8)
-    region_dict = {k: cv2.dilate(r, kernel) for k, r in region_dict.items()}
+    region_dict = {k: cv2.dilate(r, kernel) for k, r in region_img_dict.items()}
 
     # logical op.
     # A, B, C, ... ==> A, B & not A, C & not A & not B, ...
     # 始めに来た領域を優先して、領域ごとの被りをなくす
-    Rt = np.zeros(img.shape, np.uint8)
+    Rt: MatLike = np.zeros(img.shape, np.uint8)
     for k in region_dict.keys():
         # Note: keysではなくregion.itemsにすると終わらなくなる。これは辞書内を直接編集しているため。
         region_dict[k] = cv2.bitwise_and(region_dict[k], cv2.bitwise_not(Rt))
@@ -284,13 +290,13 @@ def determine_regions(
 
 
 def determine_peak_positions(
-    img: np.ndarray,
-    region_dict: Mapping[str, np.ndarray[int]],
-    xaxis: np.ndarray | Sequence | None = None,
-    yaxis: np.ndarray | Sequence | None = None,
+    img: MatLike,
+    region_dict: Mapping[str, NDArray[np.integer]],
+    xaxis: NDArray[np.floating] | Sequence | None = None,
+    yaxis: NDArray[np.floating] | Sequence | None = None,
     with_plot=False,
-    filename_plot: str = None,
-) -> dict[str, list[np.ndarray]]:
+    filename_plot: str | None = None,
+) -> dict[str, list[tuple[float, float]]]:
     """! TODO あとで書く
 
     Args:
@@ -306,8 +312,13 @@ def determine_peak_positions(
     """
     assert len(img.shape) == 2
     h, w = img.shape
-    xaxis = np.array(xaxis) if xaxis is not None else np.arange(w)
-    yaxis = np.array(yaxis) if yaxis is not None else np.arange(h)
+
+    if xaxis is None:
+        xaxis = range(w)
+    xaxis = np.array(xaxis)
+    if yaxis is None:
+        yaxis = range(h)
+    yaxis = np.array(yaxis)
     assert len(xaxis) == img.shape[1]
     assert len(yaxis) == img.shape[0]
 
@@ -326,7 +337,7 @@ def determine_peak_positions(
                 pass  # all-nan slice, その軸に値が見つからないケース
             else:
                 peak_dict[k].append((xaxis[idx_x], yaxis[idx_ypeak]))
-    peak_dict = {k: np.array(pos) for k, pos in peak_dict.items()}
+    # peak_dict = {k: np.array(pos) for k, pos in peak_dict.items()}
 
     if with_plot:
         fig, (ax, ax_pos) = plt.subplots(1, 2, figsize=(14, 6))
