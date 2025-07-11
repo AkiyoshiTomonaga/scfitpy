@@ -25,7 +25,7 @@ def test_all_singleline():
     rtol = 0.01  # relative tolerance for analysis
 
     spec = np.array(
-        [117 / (0.05**2 + (fs - f0) ** 2) for f0 in pts]
+        [2 / (0.05**2 + (fs - f0) ** 2) for f0 in pts]
     ).T  # 形状固定のLorentzian
     spec += np.random.normal(size=spec.shape)
     mag = 20 * np.log10(np.abs(spec))
@@ -42,15 +42,15 @@ def test_all_singleline():
     )
     cont_list = find_contours(
         mag_filtered,
-        level=0.02,
-        threshold_length=1000,
+        level=0.06,
+        threshold_length=1,
         with_plot=True,
         show=False,
         filename_plot=prefix + "mag_find_contours.png",
     )
     cont_dict = assign_contours(
         cont_list,
-        {"a": (1, 2)},
+        {"a": (0, 1)},
         with_plot=True,
         show=False,
         filename_plot=prefix + "contours.png",
@@ -58,7 +58,7 @@ def test_all_singleline():
     region_dict = determine_regions(
         mag,
         cont_dict,
-        kernel=25,
+        kernel=5,
         with_plot=True,
         show=False,
         filename_plot=prefix + "regions.png",
@@ -100,8 +100,8 @@ def test_all_twoline():
     apply_nofilter(mag, with_plot=True, filename_plot=prefix + "mag.png")
     mag_filtered = apply_sato_filter(
         mag,
-        4,
-        black_ridges=True,
+        2,
+        black_ridges=False,
         with_plot=True,
         show=False,
         filename_plot=prefix + "mag_filtered.png",
@@ -109,14 +109,14 @@ def test_all_twoline():
     cont_list = find_contours(
         mag_filtered,
         level=0.02,
-        threshold_length=1000,
+        threshold_length=2,
         with_plot=True,
         show=False,
         filename_plot=prefix + "mag_find_contours.png",
     )
     cont_dict = assign_contours(
         cont_list,
-        {"upper": (5, 6), "lower": (1, 2)},
+        {"upper": (15, 14), "lower": (8, 9)},
         with_plot=True,
         show=False,
         filename_plot=prefix + "contours.png",
@@ -124,7 +124,7 @@ def test_all_twoline():
     region_dict = determine_regions(
         mag,
         cont_dict,
-        kernel=20,
+        kernel=5,
         with_plot=True,
         show=False,
         filename_plot=prefix + "regions.png",
@@ -178,7 +178,7 @@ def test_all_single_curve():
     cont_list = find_contours(
         mag_filtered,
         level=0.025,
-        threshold_length=1000,
+        threshold_length=20,
         with_plot=True,
         show=False,
         filename_plot=prefix + "mag_find_contours.png",
