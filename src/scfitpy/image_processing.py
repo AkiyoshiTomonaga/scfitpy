@@ -323,7 +323,7 @@ def _make_enclosure(
     edge_polygons = [
         np.array(pair) for pair in batched(sorted_edge_points, 2, strict=True)
     ]
-    polygons = list(polygons) + edge_polygons
+    polygons = edge_polygons + list(polygons)
 
     # 順に接続するように並び替え & マージ
     _polygons = [polygons.pop(0)]

@@ -580,13 +580,13 @@ def test__make_enclosure():
     expected_polygon = [
         np.array(
             [
+                (4, 0),
                 (3, 0),
                 (5, 5),
                 (4, 10),
                 (6, 10),
                 (6, 5),
                 (4, 0),
-                (3, 0),
             ]
         )
     ]
@@ -615,7 +615,7 @@ def test__make_enclosure__pass():
 def test__make_enclosure_disjoint():
     # 横に貫くポリゴン線が2本 → マージして端を閉じた閉ポリゴンにする
     line1_poly = np.array([(30, 0), (50, 50), (40, 100)])  # (y,x)
-    line2_poly = np.array([(60, 10), (60, 50), (40, 0)])
+    line2_poly = np.array([(60, 100), (60, 50), (40, 0)])
 
     # 初めから閉じているものはそのまま返す
     closed_poly = np.array([(5, 5), (10, 10), (15, 5), (10, 1), (5, 5)])  # y,x
@@ -624,18 +624,19 @@ def test__make_enclosure_disjoint():
         closed_poly,
         np.array(
             [
-                (3, 0),
-                (5, 5),
-                (4, 10),
-                (6, 10),
-                (6, 5),
-                (4, 0),
-                (3, 0),
+                (40, 0),
+                (30, 0),
+                (50, 50),
+                (40, 100),
+                (60, 100),
+                (60, 50),
+                (40, 0),
             ]
         ),
     ]
 
-    assert np.isclose(
-        expected_polygons,
-        _make_enclosure(polygons=[line1_poly, line2_poly, closed_poly], h=1000, w=100 + 1),
-    ).all()
+    polygons = _make_enclosure(
+        polygons=[line1_poly, line2_poly, closed_poly], h=1001, w=101
+    )
+    for p1, p2 in zip(expected_polygons, polygons):
+        assert np.isclose(p1, p2).all()
