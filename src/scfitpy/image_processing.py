@@ -279,20 +279,11 @@ def _make_enclosure(
 
     # corner case: polygonがエッジ上から始まって同じ点で終わる（未対応）
 
-    # 1個だけ → 閉じているか、閉じるべきエッジが1か所あるはず
-    # 2個 → 閉じるべきエッジが2か所あるはず
-    # n個 → 閉じるべきエッジがn箇所あるはず
-
-    if len(polygons) == 1:
-        poly = polygons[0]
-        if _is_closed(poly):
-            return [poly]
-        else:
-            return [poly] + [poly[0]]
-
     # case: multi polygons are found.
     closed_polygons = [p for p in polygons if _is_closed(p)]
     polygons = [p for p in polygons if not _is_closed(p)]
+    if len(polygons) == 0:
+        return closed_polygons
 
     # 左回りにエッジを走査して、端点のリストを順に作っていく
     # その後、2個ずつリストに加える。角は閉包に含まれないと仮定しているので、
@@ -373,9 +364,7 @@ def determine_regions(
         A dictionary, key=label, value=list of binary images.
     """
 
-    def make_filled_img(
-        contours: Sequence[NDArray[np.floating]],
-    ) -> MatLike:
+    def make_filled_img(contours: Sequence[NDArray[np.floating]]) -> MatLike:
         _img: MatLike = np.zeros(img.shape, np.uint8)
 
         for poly in _make_enclosure(contours, *img.shape):
@@ -383,15 +372,6 @@ def determine_regions(
             pts = np.array(pts, dtype=np.int32).reshape((-1, 1, 2))
             _img = cv2.fillPoly(_img, [pts], (1,))
         return _img
-
-        contours = _make_enclosure(contours, *img.shape)
-
-        # converting positions to coordinates for cv2
-        pts = [np.flip(poly, axis=1)[::-1] for poly in contours]
-        # pts = np.array(pts, dtype=np.int32).reshape((-1, 1, 2))
-
-        return cv2.fillPoly(_img, pts, (1,))
-        # return cv2.polylines(_img, pts, isClosed=False, color=1)
 
     # make regeion (binary image)
     region_img_dict = {
