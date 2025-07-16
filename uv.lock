@@ -2209,6 +2209,7 @@ dependencies = [
     { name = "scikit-image" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "tqdm" },
 ]
 
 [package.dev-dependencies]
@@ -2220,7 +2221,6 @@ dev = [
     { name = "jupyter" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -2230,6 +2230,7 @@ requires-dist = [
     { name = "opencv-python" },
     { name = "scikit-image" },
     { name = "scipy" },
+    { name = "tqdm" },
 ]
 
 [package.metadata.requires-dev]
@@ -2240,7 +2241,6 @@ dev = [
     { name = "jupyter" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "tqdm" },
 ]
 
 [[package]]
