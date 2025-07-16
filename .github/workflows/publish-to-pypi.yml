@@ -2,8 +2,6 @@ name: Publish Python Package
 
 on:
   push:
-    branches:
-      - publish
     tags:
       - 'v*'
 
@@ -35,7 +33,7 @@ jobs:
 
       - name: Build package with uv
         run: |
-          uv build
+          uv build --sdist
 
       - name: Publish package using uv
         run: |
