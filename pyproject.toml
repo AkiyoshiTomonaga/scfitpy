@@ -14,10 +14,17 @@ readme = "README.md"
 classifiers = ["Programming Language :: Python"]
 requires-python = ">=3.10"
 
-dependencies = ["numpy", "matplotlib", "scipy", "scikit-image", "opencv-python"]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "scipy",
+    "scikit-image",
+    "opencv-python",
+    "tqdm",
+]
 
 [dependency-groups]
-dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "tqdm", "jq"]
+dev = ["h5py", "ipython", "jupyter", "pytest", "ruff", "jq"]
 
 # Note: 作業用に一時的に消す. 何故か指定しない場合も入ってしまうが回避方法わからない
 # [project.optional-dependencies]
