@@ -32,6 +32,10 @@ jobs:
         run: |
           uv build --sdist
 
-      - name: Publish package using uv
+      - name: Publish package to test.pypi.org
         run: |
           uv publish --publish-url https://test.pypi.org/legacy/
+
+      - name: Publish package to test.pypi.org
+        run: |
+          uv publish
