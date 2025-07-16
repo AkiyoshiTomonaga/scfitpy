@@ -11,12 +11,8 @@ The extraction of transition frequencies from a spectrum has conventionally reli
 
 ### Installation
  
-  "pip install scfitpy"
+  `pip install scfitpy`
   
-- via github
-  1. `pip install "scfitpy[cupy] @ git+https://github.com/AkiyoshiTomonaga/scfitpy.git"`
-
-
 
 ### Advanced Usages
 
