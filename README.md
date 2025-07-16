@@ -10,16 +10,12 @@ The extraction of transition frequencies from a spectrum has conventionally reli
 ## Usage
 
 ### Installation
-
+ 
+  "pip install scfitpy"
+  
 - via github
   1. `pip install "scfitpy[cupy] @ git+https://github.com/AkiyoshiTomonaga/scfitpy.git"`
-- local install
-  1. `git clone <this repo>`
-  1. `pip install .[cupy]`
-     - If you don't have a cuda environment, use `pip install .` instead. It doesn't install `cupy`.
-- for development
-  1. `git clone <this repo>`
-  1. `uv sync --dev --extra cupy`
+
 
 
 ### Advanced Usages
