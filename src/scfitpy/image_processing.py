@@ -5,11 +5,11 @@ from math import isclose, isnan
 from typing import Callable, Iterable, Mapping, Sequence
 
 import cv2
-from cv2.typing import MatLike
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NDArray, ArrayLike
-from skimage import measure, filters
+from cv2.typing import MatLike
+from numpy.typing import ArrayLike, NDArray
+from skimage import filters, measure
 
 
 def normalize(x) -> NDArray[np.floating]:
@@ -247,97 +247,98 @@ def assign_contours(
 
 
 def _is_closed(polygon: NDArray[np.floating]) -> bool:
-    assert len(polygon) >= 3
-    return all(np.isclose(polygon[0], polygon[-1]))
+    return len(polygon) > 1 and all(np.isclose(polygon[0], polygon[-1]))
+
+
+def batched(iterable, n, *, strict=False):
+    # batched('ABCDEFG', 3) → ABC DEF G
+    if n < 1:
+        raise ValueError("n must be at least one")
+    iterator = iter(iterable)
+    while batch := tuple(itertools.islice(iterator, n)):
+        if strict and len(batch) != n:
+            raise ValueError("batched(): incomplete batch")
+        yield batch
 
 
 def _make_enclosure(
     polygons: Sequence[NDArray[np.floating]], h: int, w: int
 ) -> list[NDArray[np.floating]]:
-    """ポリゴンのリストを受け取って、閉ポリゴンになるように追加したリストを返す
+    """ポリゴンのリストを受け取って、閉ポリゴンになるように変更したリストを返す
 
     仮定
     - コーナーは必ず範囲外にある
     - 包含関係にはならない
+
+    [ [(y,x), (y,x), ...],
+      [(y,x), (y,x), ...],
+      ...
+    ]
     """
     # Note: +yが上辺. y=0, ..., h-1 / x=0, ..., w-1
 
-    # 1個だけ → 閉じているか、閉じるべきエッジが1か所あるはず
-    # 2個 → 閉じるべきエッジが2か所あるはず
-    # n個 → 閉じるべきエッジがn箇所あるはず
+    # corner case: polygonがエッジ上から始まって同じ点で終わる（未対応）
 
-    if len(polygons) == 1:
-        poly = polygons[0]
-        if _is_closed(poly):
-            return [poly]
+    # case: multi polygons are found.
+    closed_polygons = [p for p in polygons if _is_closed(p)]
+    polygons = [p for p in polygons if not _is_closed(p)]
+    if len(polygons) == 0:
+        return closed_polygons
+
+    # 左回りにエッジを走査して、端点のリストを順に作っていく
+    # その後、2個ずつリストに加える。角は閉包に含まれないと仮定しているので、
+    # (終点,始点) のペアが順に得られる
+    _xval = lambda v: v[1]  # noqa: E731
+    _yval = lambda v: v[0]  # noqa: E731
+    edge_points = list(itertools.chain.from_iterable([(p[0], p[-1]) for p in polygons]))
+    sorted_edge_points = (
+        sorted(
+            [pos for pos in edge_points if isclose(pos[1], 0.0)],  # left edge
+            key=_yval,
+            reverse=True,
+        )
+        + sorted(
+            [pos for pos in edge_points if isclose(pos[0], 0.0)],  # bottom
+            key=_xval,
+        )
+        + sorted(
+            [pos for pos in edge_points if isclose(pos[1], w - 1)],  # right
+            key=_yval,
+        )
+        + sorted(
+            [pos for pos in edge_points if isclose(pos[0], h - 1)],  # top
+            key=_xval,
+            reverse=True,
+        )
+    )
+    edge_polygons = [
+        np.array(pair) for pair in batched(sorted_edge_points, 2, strict=True)
+    ]
+    polygons = edge_polygons + list(polygons)
+
+    # 順に接続するように並び替え & マージ
+    _polygons = [polygons.pop(0)]
+    while len(polygons) > 0:
+        p_last = _polygons[-1]
+
+        # 端点がpivotに最も近いものを選択
+        dist_to_head = [np.linalg.norm(p[0] - p_last[-1]) for p in polygons]
+        dist_to_tail = [np.linalg.norm(p[-1] - p_last[-1]) for p in polygons]
+        dist_to = np.min(np.column_stack([dist_to_head, dist_to_tail]), axis=1)
+        _idx = np.argmin(dist_to)
+
+        p_next = polygons.pop(_idx)
+        if isclose(dist_to[_idx], 0):
+            if dist_to_head[_idx] > dist_to_tail[_idx]:
+                p_next = np.flip(p_next, axis=0)
+
+            _polygons[-1] = np.concatenate([p_last, p_next[1:]])
+
         else:
-            return [poly] + [poly[0]]
+            _polygons.append(p_next)
+    polygons = list(_polygons)
 
-    else:  # case: multi polygons are found.
-        # 端点のリスト
-        edge_points = list(
-            itertools.chain.from_iterable([[p[0], p[-1]] for p in polygons])
-        )
-
-        # 左回りにエッジを走査して、端点のリストを順に作っていく
-        # その後、2個ずつリストに加える。角は閉包に含まれないと仮定しているので、
-        # (終点,始点) のペアが順に得られる
-        _xval = lambda v: v[1]  # noqa: E731
-        _yval = lambda v: v[0]  # noqa: E731
-        sorted_edge_points = (
-            sorted(
-                [pos for pos in edge_points if isclose(pos[1], 0.0)],  # left edge
-                key=_yval,
-                reverse=True,
-            )
-            + sorted(
-                [pos for pos in edge_points if isclose(pos[0], 0.0)],  # bottom
-                key=_xval,
-            )
-            + sorted(
-                [pos for pos in edge_points if isclose(pos[1], w - 1)],  # right
-                key=_yval,
-            )
-            + sorted(
-                [pos for pos in edge_points if isclose(pos[0], h - 1)],  # top
-                key=_xval,
-                reverse=True,
-            )
-        )
-
-        polygons = list(polygons) + [
-            np.array(pair) for pair in itertools.pairwise(sorted_edge_points)
-        ]
-
-        # 順に接続するように並び替えする
-        _polygons = []
-        while len(polygons) > 0:
-            pivot = polygons.pop()
-
-            _polygons.append(pivot)
-            polygons = sorted(
-                polygons,
-                key=lambda p: min(
-                    [np.linalg.norm(p[0] - pivot[-1]), np.linalg.norm(p[0] - pivot[0])]
-                ),
-                reverse=True,
-            )  # 始点がpivot終点に近い順に並び替え
-
-        # 向き変え
-        __polygons = [_polygons.pop(0)]
-        for poly in _polygons:
-            last_tail = __polygons[-1][-1]
-
-            pivot = _polygons.pop()
-            head = pivot[0]
-            tail = pivot[-1]
-
-            if np.linalg.norm(head - last_tail) < np.linalg.norm(tail - last_tail):
-                __polygons.append(pivot)
-            else:
-                __polygons.append(pivot[::-1])
-
-        return __polygons
+    return closed_polygons + polygons
 
 
 def determine_regions(
@@ -363,17 +364,14 @@ def determine_regions(
         A dictionary, key=label, value=list of binary images.
     """
 
-    def make_filled_img(
-        contours: Sequence[NDArray[np.floating]],
-    ) -> MatLike:
+    def make_filled_img(contours: Sequence[NDArray[np.floating]]) -> MatLike:
         _img: MatLike = np.zeros(img.shape, np.uint8)
 
-        contours = _make_enclosure(contours, *img.shape)
-
-        # converting positions to coordinates for cv2
-        pts = np.concat([np.flip(poly, axis=1) for poly in contours])
-
-        return cv2.fillPoly(_img, [pts], (1,))
+        for poly in _make_enclosure(contours, *img.shape):
+            pts = np.flip(poly, axis=1)
+            pts = np.array(pts, dtype=np.int32).reshape((-1, 1, 2))
+            _img = cv2.fillPoly(_img, [pts], (1,))
+        return _img
 
     # make regeion (binary image)
     region_img_dict = {
